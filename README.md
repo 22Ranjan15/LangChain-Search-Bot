@@ -123,10 +123,6 @@ Before you begin, ensure you have the following installed:
 4.  **Final Response:** The LLM generates the final answer based on the conversation and tool results.
 5.  **Streaming Output:** The `StreamlitCallbackHandler` intercepts the agent's thoughts and actions, displaying them in the Streamlit UI in real-time, followed by the final response.
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details (or state your chosen license).
-
 ## Acknowledgements
 
 * Built using the powerful [Streamlit](https://streamlit.io/) framework.
