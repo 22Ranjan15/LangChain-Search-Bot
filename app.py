@@ -28,16 +28,17 @@ if "messages" not in st.session_state:
 if "selected_model" not in st.session_state:
      st.session_state.selected_model = "gemini-1.5-pro" 
 
+# Initialize temperature if not already set
+if "temperature" not in st.session_state:
+    st.session_state.temperature = 0.7  # Default value for temperature
+
+
+
 # --- 3. Utility Functions ---
 def clear_chat_history():
     """Clears the chat history and resets the initial message."""
-    # Reset message slightly differently if API key is not set vs set
-    initial_message = "Hi there! Please enter your Google Gemini API Key in the sidebar to begin."
-    if st.session_state.api_keys_set:
-        initial_message = "Chat history cleared! How can I help you next?"
-
     st.session_state.messages = [
-         {"role": "assistant", "content": initial_message}
+         {"role": "assistant", "content": "Chat history cleared! How can I help you next?"}
     ]
     st.toast("Chat history cleared!", icon="🔄")
 
@@ -51,9 +52,7 @@ try:
     TOOLS = [search, arxiv, wiki]
 except Exception as e:
     st.error(f"Error initializing tools: {e}")
-    st.warning("Could not initialize search tools. Proceeding without them.")
-    TOOLS = [] # Or handle appropriately
-
+    st.stop() # Stop execution if tools can't be initialized
 
 # --- 5. Sidebar Configuration (More Organized) ---
 st.sidebar.header("⚙️ Configuration")
@@ -127,6 +126,18 @@ if selected_model != st.session_state.selected_model:
     st.session_state.selected_model = selected_model
     # No rerun needed unless model change requires immediate action
 
+# --- Add Temperature Slider ---
+st.sidebar.subheader("Model Temperature")
+st.session_state.temperature = st.sidebar.slider(
+    "Adjust creativity (0 = Deterministic, 1 = Max Creative):",
+    min_value=0.0,
+    max_value=1.0,
+    value=st.session_state.temperature, # Use current session state value
+    step=0.1,                          # Increment step
+    key="temperature_slider",
+    help="Lower values (e.g., 0.1) make the output more focused and predictable. Higher values (e.g., 0.9) generate more diverse and creative responses.",
+    disabled=not st.session_state.api_keys_set # Disable until key is set
+)
 
 # Clear Chat Button
 st.sidebar.subheader("💬 Manage Chat")
@@ -140,7 +151,7 @@ st.title("🤖 LangChain Search Bot")
 st.caption(f"Using model: `{st.session_state.selected_model}` | Tools: DuckDuckGo, Wikipedia, Arxiv")
 
 # Display chat messages from history
-for msg in st.session_state.messages:
+for i, msg in enumerate(st.session_state.messages):
     st.chat_message(msg["role"]).write(msg['content'])
 
 # Input field for user query - disabled if API key is not set
@@ -166,7 +177,7 @@ if prompt:
         llm = ChatGoogleGenerativeAI(
             google_api_key=st.session_state.google_api_key,
             model=f"models/{st.session_state.selected_model}",
-            temperature=0.7,
+            temperature=st.session_state.temperature, # Use the slider value
             streaming=True,
             convert_system_message_to_human=True
         )
@@ -184,7 +195,7 @@ if prompt:
         with st.chat_message("assistant"):
             st_cb = StreamlitCallbackHandler(st.container(), expand_new_thoughts=False, collapse_completed_thoughts=True)
             with st.spinner(f"Asking {st.session_state.selected_model}..."):
-                response = search_agent.run({"input": prompt, "chat_history": st.session_state.messages}, callbacks=[st_cb]) # Option 2: Pass structured input with history
+                response = search_agent.run(st.session_state.messages, callbacks=[st_cb]) # Pass history for context
 
             # Display the final response and add to history
             st.session_state.messages.append({'role': 'assistant', "content": response})
